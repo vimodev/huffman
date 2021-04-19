@@ -11,7 +11,7 @@ struct node {
     struct node *right;
 };
 
-char* encode(struct node *root, char byte);
+char* encode(struct node *root, unsigned char byte);
 struct node *node_create_parent(struct node *left, struct node *right);
 struct node *node_create(unsigned char byte, unsigned long long int count);
 bool node_is_leaf(struct node *x);

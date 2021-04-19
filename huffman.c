@@ -15,13 +15,30 @@ int main(int argc, char* argv[]) {
         exit(EXIT_FAILURE);
     }
 
+    // Open file
     FILE *ptr;
     ptr = fopen(argv[1], "rb");
 
+    // Create initial leaves
     struct node **nodes = create_initial_nodes(ptr);
+
+    // Form the tree
     struct node *root = huffman_combine(nodes);
 
+    // printf("%s\n", encode(root, (unsigned char) 153));
+
     compress(ptr, argv[2], root);
+
+    // Clean up memory
+    for (int i = 0; i < 512; i++) {
+        if (nodes[i] != NULL) {
+            free(nodes[i]->bytes);
+            free(nodes[i]);
+        }
+    }
+    free(nodes);
+
+    fclose(ptr);
 
     return 0;
 }
@@ -61,6 +78,7 @@ void compress(FILE *ptr, char *path, struct node *tree) {
                 fwrite(&write_byte, 1, 1, new_file);
             }
         }
+        free(encoding);
     }
     // If buffer is not empty
     if (buffer_head != 0) {
@@ -97,6 +115,7 @@ struct node **create_initial_nodes(FILE *ptr) {
             head++;
         }
     }
+    free(dist);
     // Set rest to NULL
     for (int i = head; i < 512; i++) {
         nodes[head] = NULL;
