@@ -15,22 +15,21 @@ bool bytes_contain(struct node *n, unsigned char byte) {
  */
 char* encode(struct node *root, unsigned char byte) {
     struct node *n = root;
-    char *encoding = malloc(255 * sizeof(unsigned char));
-    strcpy(encoding, "");
-    int depth = 0;
+    char *encoding = malloc(256 * sizeof(unsigned char));
+    int head = 1;
     while (!node_is_leaf(n)) {
-        depth++;
         if (bytes_contain(n->left, byte)) {
             n = n->left;
-            strcat(encoding, "0");
+            encoding[head++] = (unsigned char) 0;
         } else if (bytes_contain(n->right, byte)) {
             n = n->right;
-            strcat(encoding, "1");
+            encoding[head++] = (unsigned char) 1;
         } else {
             printf("FUCK\n");
             break;
         }
     }
+    encoding[0] = (unsigned char) head;
     return encoding;
 }
 

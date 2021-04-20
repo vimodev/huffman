@@ -8,6 +8,7 @@ struct node **create_initial_nodes(FILE *ptr);
 unsigned long long int *get_byte_distribution(FILE *ptr);
 struct node *huffman_combine(struct node **nodes);
 void compress(FILE *ptr, char *path, struct node *tree);
+unsigned char buffer_to_byte(unsigned char *buffer);
 
 int main(int argc, char* argv[]) {
     if (argc != 3) {
@@ -52,9 +53,9 @@ void compress(FILE *ptr, char *path, struct node *tree) {
     // Store byte read
     unsigned char read_byte;
     // Store return value of encoding
-    char *encoding;
+    unsigned char *encoding;
     // Buffer to write byte by byte
-    char buffer[8] = {0};
+    unsigned char buffer[8] = {0};
     // Where are we now in the buffer
     int buffer_head = 0;
     // Where are we now in the return array
@@ -65,14 +66,14 @@ void compress(FILE *ptr, char *path, struct node *tree) {
         // Encode it
         encoding = encode(tree, read_byte);
         // Move it into the buffer
-        encoding_head = 0;
-        while (encoding[encoding_head] != '\0') {
+        encoding_head = 1;
+        while (encoding_head != encoding[0]) {
             // Write char into buffer
             buffer[buffer_head++] = encoding[encoding_head++];
             // If buffer is full
             if (buffer_head >= 8) {
                 // Create a writable byte
-                char write_byte = (char) strtol(buffer, NULL, 2);
+                unsigned char write_byte = buffer_to_byte(buffer);
                 buffer_head = 0;
                 // and write it to file
                 fwrite(&write_byte, 1, 1, new_file);
@@ -180,4 +181,12 @@ struct node *huffman_combine(struct node **nodes) {
     }
 
     return NULL;
+}
+
+unsigned char buffer_to_byte(unsigned char *buffer) {
+    unsigned char result = (unsigned char) 0;
+    for (int i = 0; i < 8; i++) {
+        result |= (unsigned char) 1;
+        result << 1;
+    }
 }
