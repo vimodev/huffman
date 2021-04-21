@@ -9,37 +9,44 @@ unsigned long long int *get_byte_distribution(FILE *ptr);
 struct node *huffman_combine(struct node **nodes);
 void compress(FILE *ptr, char *path, struct node *tree);
 unsigned char buffer_to_byte(unsigned char *buffer);
+void make_file_table(FILE *ptr, unsigned char *seq, struct node *node);
+struct node *create_tree_from_table(FILE *ptr);
 
 int main(int argc, char* argv[]) {
-    if (argc != 3) {
-        perror("Expected 3 arguments.\n");
+    if (argc != 4) {
+        perror("Expected 4 arguments.\n");
         exit(EXIT_FAILURE);
     }
 
-    // Open file
-    FILE *ptr;
-    ptr = fopen(argv[1], "rb");
+    if (strcmp(argv[1], "-c") == 0) {
+        // Open file
+        FILE *ptr;
+        ptr = fopen(argv[2], "rb");
 
-    // Create initial leaves
-    struct node **nodes = create_initial_nodes(ptr);
+        // Create initial leaves
+        struct node **nodes = create_initial_nodes(ptr);
 
-    // Form the tree
-    struct node *root = huffman_combine(nodes);
+        // Form the tree
+        struct node *root = huffman_combine(nodes);
 
-    // printf("%s\n", encode(root, (unsigned char) 153));
+        compress(ptr, argv[3], root);
 
-    compress(ptr, argv[2], root);
-
-    // Clean up memory
-    for (int i = 0; i < 512; i++) {
-        if (nodes[i] != NULL) {
-            free(nodes[i]->bytes);
-            free(nodes[i]);
+        // Clean up memory
+        for (int i = 0; i < 512; i++) {
+            if (nodes[i] != NULL) {
+                free(nodes[i]->bytes);
+                free(nodes[i]);
+            }
         }
-    }
-    free(nodes);
+        free(nodes);
 
-    fclose(ptr);
+        fclose(ptr);
+    } else if (strcmp(argv[1], "-d") == 0) {
+        // Open file
+        FILE *ptr;
+        ptr = fopen(argv[2], "rb");
+        create_tree_from_table(ptr);
+    }
 
     return 0;
 }
@@ -48,6 +55,14 @@ void compress(FILE *ptr, char *path, struct node *tree) {
     // Create new file
     FILE *new_file;
     new_file = fopen(path, "wb+");
+    // Write huffman encodings
+    unsigned char *seq = (unsigned char *) malloc(257 * sizeof(unsigned char));
+    seq[0] = 1;
+    make_file_table(new_file, seq, tree);
+    fseek(new_file, -1, SEEK_CUR);
+    unsigned char buf = 255;
+    fwrite(&buf, 1, 1, new_file);
+    //free(seq);
     // Compress
     fseek(ptr, 0, SEEK_SET);
     // Store byte read
@@ -85,10 +100,10 @@ void compress(FILE *ptr, char *path, struct node *tree) {
     if (buffer_head != 0) {
         // Fill buffer with 0's
         while (buffer_head < 8) {
-            buffer[buffer_head++] = '0';
+            buffer[buffer_head++] = (unsigned char) 0;
         }
         // And create a byte
-        char write_byte = (char) strtol(buffer, NULL, 2);
+        unsigned char write_byte = buffer_to_byte(buffer);
         buffer_head = 0;
         // To write
         fwrite(&write_byte, 1, 1, new_file);
@@ -186,7 +201,52 @@ struct node *huffman_combine(struct node **nodes) {
 unsigned char buffer_to_byte(unsigned char *buffer) {
     unsigned char result = (unsigned char) 0;
     for (int i = 0; i < 8; i++) {
-        result |= (unsigned char) 1;
-        result << 1;
+        result <<= 1;
+        result += (unsigned char) buffer[i];
     }
+    return result;
+}
+
+void make_file_table(FILE *ptr, unsigned char *seq, struct node *node) {
+    if (node_is_leaf(node)) {
+        int seq_end = seq[0];
+        fwrite(node->bytes, 1, 1, ptr);
+        for (int i = 0; i < seq_end; i++) {
+            fwrite(&seq[i + 1], 1, 1, ptr);
+        }
+        unsigned char two = (unsigned char) 2;
+        fwrite(&two, 1, 1, ptr);
+        return;
+    }
+    // Recurse left
+    seq[seq[0]++] = (unsigned char) 0;
+    make_file_table(ptr, seq, node->left);
+    // Recurse right
+    seq[seq[0] - 1] = (unsigned char) 1;
+    make_file_table(ptr, seq, node->right);
+    // Move sequence head back
+    seq[0]--;
+}
+
+struct node *create_tree_from_table(FILE *ptr) {
+    // Reset pointer to start just in case
+    fseek(ptr, 0, SEEK_SET);
+    unsigned char buffer;
+    bool prev_was_delim = true;
+    // Go over entire file, all bytes
+    while (!feof(ptr)) {
+        // Increment the distribution based on the byte found
+        fread(&buffer, sizeof(buffer), 1, ptr);
+        if (buffer == (unsigned char) 255) break;
+        if (prev_was_delim) {
+            printf("%d : ", (int) buffer);
+            prev_was_delim = false;
+        } else if (buffer == (unsigned char) 2) {
+            prev_was_delim = true;
+            printf("\n");
+        } else {
+            printf("%d", (int) buffer);
+        }
+    }
+    return NULL;
 }
