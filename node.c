@@ -3,9 +3,9 @@
 /**
  * Does the node represent the given byte?
  */
-bool bytes_contain(struct node *n, unsigned char byte) {
-    for (int i = 0; i < n->nr_of_bytes; i++) {
-        if (n->bytes[i] == byte) return true;
+bool bytes_contain(unsigned char *bytes, int n, unsigned char byte) {
+    for (int i = 0; i < n; i++) {
+        if (bytes[i] == byte) return true;
     }
     return false;
 }
@@ -13,24 +13,19 @@ bool bytes_contain(struct node *n, unsigned char byte) {
 /**
  * Given the huffman tree, encode the byte
  */
-char* encode(struct node *root, unsigned char byte) {
+void encode(struct node *root, unsigned char byte, char *encoding) {
     struct node *n = root;
-    char *encoding = malloc(256 * sizeof(unsigned char));
     int head = 1;
-    while (!node_is_leaf(n)) {
-        if (bytes_contain(n->left, byte)) {
+    while (n->left != NULL && n->right != NULL) {
+        if (bytes_contain(n->left->bytes, n->left->nr_of_bytes, byte)) {
             n = n->left;
             encoding[head++] = (unsigned char) 0;
-        } else if (bytes_contain(n->right, byte)) {
+        } else {
             n = n->right;
             encoding[head++] = (unsigned char) 1;
-        } else {
-            exit(EXIT_FAILURE);
-            break;
         }
     }
     encoding[0] = (unsigned char) head;
-    return encoding;
 }
 
 /**

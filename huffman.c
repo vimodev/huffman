@@ -134,13 +134,10 @@ void compress(FILE *ptr, char *path, struct node *tree) {
     fseek(new_file, -1, SEEK_CUR);
     unsigned char buf = 255;
     fwrite(&buf, 1, 1, new_file);
-    //free(seq);
     // Compress
     fseek(ptr, 0, SEEK_SET);
     // Store byte read
     unsigned char read_byte;
-    // Store return value of encoding
-    unsigned char *encoding;
     // Buffer to write byte by byte
     unsigned char buffer[8] = {0};
     // Where are we now in the buffer
@@ -148,6 +145,7 @@ void compress(FILE *ptr, char *path, struct node *tree) {
     // Where are we now in the return array
     int encoding_head;
     int byte_count = 0;
+    unsigned char *encoding = (unsigned char *) malloc(256 * sizeof(unsigned char));
     while (!feof(ptr)) {
         // Read a byte
         fread(&read_byte, sizeof(read_byte), 1, ptr);
@@ -157,7 +155,7 @@ void compress(FILE *ptr, char *path, struct node *tree) {
             fflush(stdout);
         }
         // Encode it
-        encoding = encode(tree, read_byte);
+        encode(tree, read_byte, encoding);
         // Move it into the buffer
         encoding_head = 1;
         while (encoding_head != encoding[0]) {
@@ -172,8 +170,8 @@ void compress(FILE *ptr, char *path, struct node *tree) {
                 fwrite(&write_byte, 1, 1, new_file);
             }
         }
-        free(encoding);
     }
+    free(encoding);
     // If buffer is not empty
     if (buffer_head != 0) {
         // Fill buffer with 0's
