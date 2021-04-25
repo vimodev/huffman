@@ -9,8 +9,12 @@ unsigned long long int *get_byte_distribution(FILE *ptr);
 struct node *huffman_combine(struct node **nodes);
 void compress(FILE *ptr, char *path, struct node *tree);
 unsigned char buffer_to_byte(unsigned char *buffer);
+unsigned char *byte_to_buffer(unsigned char byte);
 void make_file_table(FILE *ptr, unsigned char *seq, struct node *node);
-struct node *create_tree_from_table(FILE *ptr);
+unsigned char **read_table(FILE *ptr);
+struct node *create_tree_from_table(unsigned char **table);
+void add_byte_to_tree(struct node *tree, unsigned char *sequence);
+void decompress(FILE *ptr, char *path, struct node *tree);
 
 int main(int argc, char* argv[]) {
     if (argc != 4) {
@@ -45,10 +49,40 @@ int main(int argc, char* argv[]) {
         // Open file
         FILE *ptr;
         ptr = fopen(argv[2], "rb");
-        create_tree_from_table(ptr);
+        // Read the table from the file
+        unsigned char **table = read_table(ptr);
+        // Create the tree from the table
+        struct node *root = create_tree_from_table(table);
+        decompress(ptr, argv[3], root);
+        fclose(ptr);
     }
 
     return 0;
+}
+
+void decompress(FILE *ptr, char *path, struct node *tree) {
+    // Create new file
+    FILE *new_file;
+    new_file = fopen(path, "wb+");
+    unsigned char read_byte;
+    unsigned char *buffer;
+    struct node *n = tree;
+    while (!feof(ptr)) {
+        fread(&read_byte, sizeof(read_byte), 1, ptr);
+        buffer = byte_to_buffer(read_byte); 
+        for (int head = 0; head < 8; head++) {
+            if (node_is_leaf(n)) {
+                printf("-> %d\n", *(n->bytes));
+                fwrite(n->bytes, 1, 1, new_file);
+                n = tree;
+            }
+            printf("%d\n", buffer[head]);
+            if (buffer[head] == 0) n = n->left;
+            else if (buffer[head] == 1) n = n->right;
+        }
+        free(buffer);
+    }
+    fclose(new_file);
 }
 
 void compress(FILE *ptr, char *path, struct node *tree) {
@@ -207,6 +241,15 @@ unsigned char buffer_to_byte(unsigned char *buffer) {
     return result;
 }
 
+unsigned char *byte_to_buffer(unsigned char byte) {
+    unsigned char *buffer = calloc(8, sizeof(unsigned char));
+    for (int i = 7; i >= 0; i--) {
+        buffer[i] = byte % 2;
+        byte >>= 1;
+    }
+    return buffer;
+}
+
 void make_file_table(FILE *ptr, unsigned char *seq, struct node *node) {
     if (node_is_leaf(node)) {
         int seq_end = seq[0];
@@ -228,7 +271,11 @@ void make_file_table(FILE *ptr, unsigned char *seq, struct node *node) {
     seq[0]--;
 }
 
-struct node *create_tree_from_table(FILE *ptr) {
+unsigned char **read_table(FILE *ptr) {
+    // Make a table in memory
+    unsigned char **table = (unsigned char **) malloc(256 * sizeof(unsigned char *));
+    int table_head = 1;
+    unsigned char row_head;
     // Reset pointer to start just in case
     fseek(ptr, 0, SEEK_SET);
     unsigned char buffer;
@@ -237,16 +284,66 @@ struct node *create_tree_from_table(FILE *ptr) {
     while (!feof(ptr)) {
         // Increment the distribution based on the byte found
         fread(&buffer, sizeof(buffer), 1, ptr);
-        if (buffer == (unsigned char) 255) break;
+        // ff denotes end of huffman table
+        if (buffer == (unsigned char) 255) {
+            table[table_head][1] = row_head;
+            table_head++;
+            break;
+        }
+        // Was the previous byte a delimiting byte?
         if (prev_was_delim) {
-            printf("%d : ", (int) buffer);
+            //printf("%d : ", (int) buffer);
+            // Create a new row for a new byte
+            table[table_head] = malloc(257 * sizeof(unsigned char));
+            // Denote for which byte it is
+            table[table_head][0] = buffer;
+            row_head = 2;
             prev_was_delim = false;
+        // Is the current byte delimiting
         } else if (buffer == (unsigned char) 2) {
+            // assign it as such
             prev_was_delim = true;
-            printf("\n");
+            //printf("\n");
+            // Finalize the current table row
+            table[table_head][1] = row_head;
+            table_head++;
+        // We are reading encoding
         } else {
-            printf("%d", (int) buffer);
+            //printf("%d", (int) buffer);
+            // append it to the table row
+            table[table_head][row_head++] = buffer;
         }
     }
-    return NULL;
+    //printf("\n");
+    // Put the head at the front of the table
+    table[0] = (unsigned char *) malloc(sizeof(unsigned char));
+    table[0][0] = table_head;
+    return table;
+}
+
+struct node *create_tree_from_table(unsigned char **table) {
+    struct node *root = node_create(0, 0);
+    for (int i = 1; i < table[0][0]; i++) {
+        add_byte_to_tree(root, table[i]);
+    }
+    return root;
+}
+
+void add_byte_to_tree(struct node *tree, unsigned char *sequence) {
+    printf("Adding %d to tree: ", sequence[0]);
+    struct node *subtree = tree;
+    for (int i = 2; i < sequence[1]; i++) {
+        printf("%d", sequence[i]);
+        if (sequence[i] == 0) {
+            if (subtree->left == NULL) subtree->left = node_create(0, 0);
+            subtree = subtree->left;
+        } else if (sequence[i] == 1) {
+            if (subtree->right == NULL) subtree->right = node_create(0, 0);
+            subtree = subtree->right;
+        } else {
+            printf("uh oh\n");
+        }
+    }
+    printf("\n");
+    *(subtree->bytes) = sequence[0];
 }
