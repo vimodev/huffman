@@ -25,6 +25,7 @@ static time_t interval;
 int main(int argc, char* argv[]) {
     process_start = clock();
     if (argc != 4) {
+        printf("Format: huffman -c/-d <input> <output>\n");
         perror("Expected 4 arguments.\n");
         exit(EXIT_FAILURE);
     }
@@ -58,6 +59,7 @@ int main(int argc, char* argv[]) {
             }
         }
         free(nodes);
+        node_free(root);
 
         fclose(ptr);
     } else if (strcmp(argv[1], "-d") == 0) {
@@ -76,7 +78,15 @@ int main(int argc, char* argv[]) {
         printf("Reconstructing encoding tree...\r");
         fflush(stdout);
         struct node *root = create_tree_from_table(table);
+        // Free the table
+        for (int i = 1; i < table[0][0] + table[0][1]; i++) {
+            free(table[i]);
+        }
+        free(table[0]); free(table);
+        // Decompress the file using the tree
         decompress(ptr, argv[3], root);
+        // Free the tree
+        node_free(root);
         fclose(ptr);
     }
 
@@ -126,6 +136,7 @@ void compress(FILE *ptr, char *path, struct node *tree) {
     unsigned char *seq = (unsigned char *) malloc(257 * sizeof(unsigned char));
     seq[0] = 1;
     make_file_table(new_file, seq, tree);
+    free(seq);
     fseek(new_file, -1, SEEK_CUR);
     unsigned char buf = 255;
     fwrite(&buf, 1, 1, new_file);

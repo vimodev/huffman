@@ -73,3 +73,12 @@ struct node *node_create(unsigned char byte, unsigned long long int count) {
 bool node_is_leaf(struct node *x) {
     return x->left == NULL && x->right == NULL;
 }
+
+void node_free(struct node *subtree) {
+    free(subtree->bytes);
+    if (!node_is_leaf(subtree)) {
+        node_free(subtree->left);
+        node_free(subtree->right);
+    }
+    free(subtree);
+}
