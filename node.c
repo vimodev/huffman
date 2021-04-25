@@ -25,7 +25,7 @@ char* encode(struct node *root, unsigned char byte) {
             n = n->right;
             encoding[head++] = (unsigned char) 1;
         } else {
-            printf("FUCK\n");
+            exit(EXIT_FAILURE);
             break;
         }
     }

@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <stdbool.h>
 #include <string.h>
+#include <time.h>
 #include "node.h"
 
 struct node **create_initial_nodes(FILE *ptr);
@@ -16,7 +17,13 @@ struct node *create_tree_from_table(unsigned char **table);
 void add_byte_to_tree(struct node *tree, unsigned char *sequence);
 void decompress(FILE *ptr, char *path, struct node *tree);
 
+static int file_size;
+static int progress_print_interval = 1000000;
+static time_t process_start, process_end;
+static time_t interval;
+
 int main(int argc, char* argv[]) {
+    process_start = clock();
     if (argc != 4) {
         perror("Expected 4 arguments.\n");
         exit(EXIT_FAILURE);
@@ -26,11 +33,19 @@ int main(int argc, char* argv[]) {
         // Open file
         FILE *ptr;
         ptr = fopen(argv[2], "rb");
+        // Determine file size
+        fseek(ptr, 0, SEEK_END);
+        file_size = ftell(ptr);
+        fseek(ptr, 0, SEEK_SET);
 
         // Create initial leaves
+        printf("Determining byte distribution...\r");
+        fflush(stdout);
         struct node **nodes = create_initial_nodes(ptr);
 
         // Form the tree
+        printf("Forming encoding tree...          \r");
+        fflush(stdout);
         struct node *root = huffman_combine(nodes);
 
         compress(ptr, argv[3], root);
@@ -49,13 +64,27 @@ int main(int argc, char* argv[]) {
         // Open file
         FILE *ptr;
         ptr = fopen(argv[2], "rb");
+        // Determine file size
+        fseek(ptr, 0, SEEK_END);
+        file_size = ftell(ptr);
+        fseek(ptr, 0, SEEK_SET);
         // Read the table from the file
+        printf("Reading encoding table...\r");
+        fflush(stdout);
         unsigned char **table = read_table(ptr);
         // Create the tree from the table
+        printf("Reconstructing encoding tree...\r");
+        fflush(stdout);
         struct node *root = create_tree_from_table(table);
         decompress(ptr, argv[3], root);
         fclose(ptr);
     }
+
+    process_end = clock();
+    double total_time = (double) (process_end - process_start) / (double) CLOCKS_PER_SEC;
+    printf("Operation took %.2f seconds.\n", total_time);
+    printf("(%.2f MB/s)\n", (double) file_size / (total_time * 1000000));
+    printf("Output file: %s\n", argv[3]);
 
     return 0;
 }
@@ -67,8 +96,14 @@ void decompress(FILE *ptr, char *path, struct node *tree) {
     unsigned char read_byte;
     unsigned char *buffer;
     struct node *n = tree;
+    int byte_count = 0;
     while (!feof(ptr)) {
         fread(&read_byte, sizeof(read_byte), 1, ptr);
+        byte_count++;
+        if (byte_count % 1024 == 0) {
+            printf("%0.2f%%                                   \r", ((double) byte_count / (double) file_size) * 100);
+            fflush(stdout);
+        }
         buffer = byte_to_buffer(read_byte); 
         for (int head = 0; head < 8; head++) {
             if (node_is_leaf(n)) {
@@ -107,9 +142,15 @@ void compress(FILE *ptr, char *path, struct node *tree) {
     int buffer_head = 0;
     // Where are we now in the return array
     int encoding_head;
+    int byte_count = 0;
     while (!feof(ptr)) {
         // Read a byte
         fread(&read_byte, sizeof(read_byte), 1, ptr);
+        byte_count++;
+        if (byte_count % 1024 == 0) {
+            printf("%0.2f%%                                   \r", ((double) byte_count / (double) file_size) * 100);
+            fflush(stdout);
+        }
         // Encode it
         encoding = encode(tree, read_byte);
         // Move it into the buffer
@@ -339,7 +380,7 @@ void add_byte_to_tree(struct node *tree, unsigned char *sequence) {
             if (subtree->right == NULL) subtree->right = node_create(0, 0);
             subtree = subtree->right;
         } else {
-            
+            exit(EXIT_FAILURE);
         }
     }
     *(subtree->bytes) = sequence[0];
