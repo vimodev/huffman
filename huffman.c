@@ -72,11 +72,9 @@ void decompress(FILE *ptr, char *path, struct node *tree) {
         buffer = byte_to_buffer(read_byte); 
         for (int head = 0; head < 8; head++) {
             if (node_is_leaf(n)) {
-                printf("-> %d\n", *(n->bytes));
                 fwrite(n->bytes, 1, 1, new_file);
                 n = tree;
             }
-            printf("%d\n", buffer[head]);
             if (buffer[head] == 0) n = n->left;
             else if (buffer[head] == 1) n = n->right;
         }
@@ -254,8 +252,8 @@ void make_file_table(FILE *ptr, unsigned char *seq, struct node *node) {
     if (node_is_leaf(node)) {
         int seq_end = seq[0];
         fwrite(node->bytes, 1, 1, ptr);
-        for (int i = 0; i < seq_end; i++) {
-            fwrite(&seq[i + 1], 1, 1, ptr);
+        for (int i = 1; i < seq_end; i++) {
+            fwrite(&seq[i], 1, 1, ptr);
         }
         unsigned char two = (unsigned char) 2;
         fwrite(&two, 1, 1, ptr);
@@ -292,7 +290,6 @@ unsigned char **read_table(FILE *ptr) {
         }
         // Was the previous byte a delimiting byte?
         if (prev_was_delim) {
-            //printf("%d : ", (int) buffer);
             // Create a new row for a new byte
             table[table_head] = malloc(257 * sizeof(unsigned char));
             // Denote for which byte it is
@@ -303,18 +300,15 @@ unsigned char **read_table(FILE *ptr) {
         } else if (buffer == (unsigned char) 2) {
             // assign it as such
             prev_was_delim = true;
-            //printf("\n");
             // Finalize the current table row
             table[table_head][1] = row_head;
             table_head++;
         // We are reading encoding
         } else {
-            //printf("%d", (int) buffer);
             // append it to the table row
             table[table_head][row_head++] = buffer;
         }
     }
-    //printf("\n");
     // Put the head at the front of the table
     table[0] = (unsigned char *) malloc(sizeof(unsigned char));
     table[0][0] = table_head;
@@ -330,10 +324,8 @@ struct node *create_tree_from_table(unsigned char **table) {
 }
 
 void add_byte_to_tree(struct node *tree, unsigned char *sequence) {
-    printf("Adding %d to tree: ", sequence[0]);
     struct node *subtree = tree;
     for (int i = 2; i < sequence[1]; i++) {
-        printf("%d", sequence[i]);
         if (sequence[i] == 0) {
             if (subtree->left == NULL) subtree->left = node_create(0, 0);
             subtree = subtree->left;
@@ -341,9 +333,8 @@ void add_byte_to_tree(struct node *tree, unsigned char *sequence) {
             if (subtree->right == NULL) subtree->right = node_create(0, 0);
             subtree = subtree->right;
         } else {
-            printf("uh oh\n");
+            
         }
     }
-    printf("\n");
     *(subtree->bytes) = sequence[0];
 }
