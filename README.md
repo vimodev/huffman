@@ -3,7 +3,7 @@
 Implementation of huffman algorithm for compressing files.
 
 ## todo:
-- Turn encoding table back into tree
-- Decompressing
+- Progress indication and timing output
+- Auto file naming
 - Leaky memory analysis (yikes)
 - Performance improvements

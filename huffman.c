@@ -271,7 +271,7 @@ void make_file_table(FILE *ptr, unsigned char *seq, struct node *node) {
 
 unsigned char **read_table(FILE *ptr) {
     // Make a table in memory
-    unsigned char **table = (unsigned char **) malloc(257 * sizeof(unsigned char *));
+    unsigned char **table = (unsigned char **) malloc(512 * sizeof(unsigned char *));
     int table_head = 1;
     unsigned char row_head;
     // Reset pointer to start just in case
@@ -291,7 +291,7 @@ unsigned char **read_table(FILE *ptr) {
         // Was the previous byte a delimiting byte?
         if (prev_was_delim) {
             // Create a new row for a new byte
-            table[table_head] = malloc(257 * sizeof(unsigned char));
+            table[table_head] = malloc(512 * sizeof(unsigned char));
             // Denote for which byte it is
             table[table_head][0] = buffer;
             row_head = 2;
@@ -310,14 +310,20 @@ unsigned char **read_table(FILE *ptr) {
         }
     }
     // Put the head at the front of the table
-    table[0] = (unsigned char *) malloc(sizeof(unsigned char));
-    table[0][0] = table_head;
+    table[0] = (unsigned char *) malloc(2 * sizeof(unsigned char));
+    if (table_head > 255) {
+        table[0][0] = 255;
+        table[0][1] = table_head - 255;
+    } else {
+        table[0][0] = table_head;
+        table[0][1] = 0;
+    }
     return table;
 }
 
 struct node *create_tree_from_table(unsigned char **table) {
     struct node *root = node_create(0, 0);
-    for (int i = 1; i < table[0][0]; i++) {
+    for (int i = 1; i < table[0][0] + table[0][1]; i++) {
         add_byte_to_tree(root, table[i]);
     }
     return root;
