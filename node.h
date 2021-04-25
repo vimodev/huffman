@@ -5,6 +5,7 @@
 
 struct node {
     unsigned char *bytes;
+    bool *contains;
     unsigned int nr_of_bytes;
     unsigned long long int count;
     struct node *left;

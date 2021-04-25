@@ -1,23 +1,13 @@
 #include "node.h"
 
 /**
- * Does the node represent the given byte?
- */
-bool bytes_contain(unsigned char *bytes, int n, unsigned char byte) {
-    for (int i = 0; i < n; i++) {
-        if (bytes[i] == byte) return true;
-    }
-    return false;
-}
-
-/**
  * Given the huffman tree, encode the byte
  */
 void encode(struct node *root, unsigned char byte, char *encoding) {
     struct node *n = root;
     int head = 1;
     while (n->left != NULL && n->right != NULL) {
-        if (bytes_contain(n->left->bytes, n->left->nr_of_bytes, byte)) {
+        if (n->left->contains[byte]) {
             n = n->left;
             encoding[head++] = (unsigned char) 0;
         } else {
@@ -38,8 +28,8 @@ struct node *node_create_parent(struct node *left, struct node *right) {
     new_node->nr_of_bytes = left->nr_of_bytes + right->nr_of_bytes;
     new_node->bytes = (unsigned char *) malloc(new_node->nr_of_bytes * sizeof(unsigned char));
     // Copy the bytes correspondingly
-    for (int i = 0; i < left->nr_of_bytes; i++) new_node->bytes[i] = left->bytes[i];
-    for (int i = left->nr_of_bytes; i < new_node->nr_of_bytes; i++) new_node->bytes[i] = right->bytes[i - left->nr_of_bytes];
+    new_node->contains = (bool *) calloc(256, sizeof(bool));
+    for (int i = 0; i < 256; i++) new_node->contains[i] = left->contains[i] || right->contains[i];
     // Assign children
     new_node->left = left;
     new_node->right = right;
@@ -54,6 +44,8 @@ struct node *node_create_parent(struct node *left, struct node *right) {
 struct node *node_create(unsigned char byte, unsigned long long int count) {
     struct node *new_node = (struct node *) malloc(sizeof(struct node));
     new_node->bytes = (unsigned char *) malloc(sizeof(unsigned char));
+    new_node->contains = (bool *) calloc(256, sizeof(bool));
+    new_node->contains[byte] = true;
     new_node->bytes[0] = byte;
     new_node->count = count;
     new_node->left = NULL;
