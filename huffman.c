@@ -271,7 +271,7 @@ void make_file_table(FILE *ptr, unsigned char *seq, struct node *node) {
 
 unsigned char **read_table(FILE *ptr) {
     // Make a table in memory
-    unsigned char **table = (unsigned char **) malloc(256 * sizeof(unsigned char *));
+    unsigned char **table = (unsigned char **) malloc(257 * sizeof(unsigned char *));
     int table_head = 1;
     unsigned char row_head;
     // Reset pointer to start just in case
@@ -283,7 +283,7 @@ unsigned char **read_table(FILE *ptr) {
         // Increment the distribution based on the byte found
         fread(&buffer, sizeof(buffer), 1, ptr);
         // ff denotes end of huffman table
-        if (buffer == (unsigned char) 255) {
+        if (buffer == (unsigned char) 255 && !prev_was_delim) {
             table[table_head][1] = row_head;
             table_head++;
             break;
