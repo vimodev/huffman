@@ -52,12 +52,6 @@ int main(int argc, char* argv[]) {
         compress(ptr, argv[3], root);
 
         // Clean up memory
-        for (int i = 0; i < 512; i++) {
-            if (nodes[i] != NULL) {
-                free(nodes[i]->bytes);
-                free(nodes[i]);
-            }
-        }
         free(nodes);
         node_free(root);
 
